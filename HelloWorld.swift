@@ -1,13 +1,17 @@
+
 import Foundation
 
 func greet(name: String) {
     print("Hello, \(name)!")
 }
 
-greet(name: "Yana")
-
 func goodbye(name: String) {
-    print("Goodbye, \(name)!")
+    print("Goodbye, \(name)")
 }
 
+func unusedFunction() {
+    let temp = "This function is never called"
+}
+
+greet(name: "Yana")
 goodbye(name: "Yana")
