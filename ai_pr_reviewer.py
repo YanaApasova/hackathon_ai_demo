@@ -19,18 +19,6 @@ def get_changed_files(pr_url, token):
         return []
     return response.json()
 
-def get_diff_for_file(pr_url, filename, token):
-    """Fetch raw diff content from GitHub API."""
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3.diff"
-    }
-    response = requests.get(f"{pr_url}", headers=headers)
-    if response.status_code != 200:
-        print(f"Error fetching PR diff: {response.text}")
-        return ""
-    return response.text  # You can optionally extract file-specific diff here
-
 def generate_ai_review(diff_text):
     """Generate AI-based review comments using OpenAI."""
     try:
@@ -57,25 +45,21 @@ def generate_ai_review(diff_text):
         print("⚠️ OpenAI API error:", e)
         return "Unable to generate review comment."
 
-def post_review_comment(repo, pr_number, token, comment_body, commit_id, file_path):
-    """Posts an inline comment on the PR."""
-    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments"
+def post_summary_comment(repo, pr_number, token, body):
+    """Posts a top-level comment to the PR (not inline)."""
+    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json",
     }
     payload = {
-        "body": comment_body,
-        "commit_id": commit_id,
-        "path": file_path,
-        "line": 1,
-        "side": "RIGHT"
+        "body": body
     }
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code == 201:
-        print(f"✅ Comment posted on {file_path}")
+        print("✅ Posted top-level comment on PR.")
     else:
-        print("❌ Failed to post review comment:", response.text)
+        print("❌ Failed to post summary comment:", response.text)
 
 def main():
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -106,16 +90,22 @@ def main():
         print("No changed files detected.")
         return
 
+    full_diff = ""
     for file in files:
         filename = file["filename"]
         patch = file.get("patch")
         if not patch:
             print(f"⚠️ Skipping {filename} (no patch)")
             continue
-
         print(f"🔍 Reviewing {filename}...")
-        ai_comment = generate_ai_review(patch)
-        post_review_comment(repo, pr_number, token, ai_comment, commit_id, filename)
+        full_diff += f"\n--- {filename} ---\n{patch}\n"
+
+    if full_diff.strip() == "":
+        print("No patch content available to review.")
+        return
+
+    ai_comment = generate_ai_review(full_diff)
+    post_summary_comment(repo, pr_number, token, ai_comment)
 
 if __name__ == "__main__":
     main()
