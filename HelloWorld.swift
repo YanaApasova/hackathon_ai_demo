@@ -5,3 +5,9 @@ func greet(name: String) {
 }
 
 greet(name: "Yana")
+
+func goodbye(name: String) {
+    print("Goodbye, \(name)!")
+}
+
+goodbye(name: "Yana")
