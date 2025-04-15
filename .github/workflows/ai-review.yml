@@ -28,4 +28,4 @@ jobs:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python ai_pr_reviewer_hakathon
+        run: python ai_pr_reviewer.py
