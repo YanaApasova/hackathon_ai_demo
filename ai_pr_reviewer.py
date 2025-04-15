@@ -23,7 +23,7 @@ def generate_ai_review(diff_text):
     """Generate AI-based review comments using OpenAI."""
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # or "gpt-3.5-turbo"
+            model="gpt-3.5-turbo",  
             messages=[
                 {
                     "role": "system",
