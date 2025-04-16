@@ -13,5 +13,10 @@ func unusedFunction() {
     let temp = "This function is never called"
 }
 
+func aiReviewTrigger() {
+    let number = 1
+    let number = 2
+}
+
 greet(name: "Yana")
 goodbye(name: "Yana")
