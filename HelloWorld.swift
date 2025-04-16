@@ -18,5 +18,9 @@ func aiReviewTrigger() {
     let number = 2
 }
 
+func aiReviewShouldReviewThat() {
+    
+}
+
 greet(name: "Yana")
 goodbye(name: "Yana")
