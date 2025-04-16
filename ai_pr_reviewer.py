@@ -3,6 +3,7 @@ import os
 import json
 import requests
 import openai
+import re
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
@@ -45,21 +46,48 @@ def generate_ai_review(diff_text):
         print("⚠️ OpenAI API error:", e)
         return "Unable to generate review comment."
 
-def post_summary_comment(repo, pr_number, token, body):
-    """Posts a top-level comment to the PR (not inline)."""
-    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
+def find_first_changed_line(patch):
+    """Parse the patch to find the first line number in the new code ('+')."""
+    hunk_pattern = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
+    line_num = None
+
+    for line in patch.splitlines():
+        match = hunk_pattern.match(line)
+        if match:
+            line_num = int(match.group(1))
+            continue
+        if line_num is not None:
+            if line.startswith('+') and not line.startswith('+++'):
+                return line_num
+            elif not line.startswith('-'):
+                line_num += 1
+    return None
+
+def post_review_comment(repo, pr_number, token, comment_body, commit_id, file_path, patch):
+    """Posts an inline comment to the PR on the actual changed line."""
+    line_number = find_first_changed_line(patch)
+    if not line_number:
+        print(f"⚠️ Could not determine changed line for {file_path}.")
+        return
+
+    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments"
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json",
     }
     payload = {
-        "body": body
+        "body": comment_body,
+        "commit_id": commit_id,
+        "path": file_path,
+        "line": line_number,
+        "side": "RIGHT"
     }
+
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code == 201:
-        print("✅ Posted top-level comment on PR.")
+        print(f"✅ Inline comment posted on {file_path} at line {line_number}")
     else:
-        print("❌ Failed to post summary comment:", response.text)
+        print("❌ Failed to post inline comment:", response.text)
 
 def main():
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -90,22 +118,16 @@ def main():
         print("No changed files detected.")
         return
 
-    full_diff = ""
     for file in files:
         filename = file["filename"]
         patch = file.get("patch")
         if not patch:
             print(f"⚠️ Skipping {filename} (no patch)")
             continue
+
         print(f"🔍 Reviewing {filename}...")
-        full_diff += f"\n--- {filename} ---\n{patch}\n"
-
-    if full_diff.strip() == "":
-        print("No patch content available to review.")
-        return
-
-    ai_comment = generate_ai_review(full_diff)
-    post_summary_comment(repo, pr_number, token, ai_comment)
+        ai_comment = generate_ai_review(patch)
+        post_review_comment(repo, pr_number, token, ai_comment, commit_id, filename, patch)
 
 if __name__ == "__main__":
     main()
