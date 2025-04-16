@@ -47,20 +47,23 @@ def generate_ai_review(diff_text):
         return "Unable to generate review comment."
 
 def find_first_changed_line(patch):
-    """Parse the patch to find the first line number in the new code ('+')."""
-    hunk_pattern = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
-    line_num = None
+    """Parse patch to find the first actual added line in the diff."""
+    lines = patch.splitlines()
+    current_line = None
+    line_offset = 0
 
-    for line in patch.splitlines():
-        match = hunk_pattern.match(line)
-        if match:
-            line_num = int(match.group(1))
-            continue
-        if line_num is not None:
-            if line.startswith('+') and not line.startswith('+++'):
-                return line_num
-            elif not line.startswith('-'):
-                line_num += 1
+    for line in lines:
+        if line.startswith("@@"):
+            # Parse the new file hunk header
+            match = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)", line)
+            if match:
+                current_line = int(match.group(1))
+                line_offset = 0
+        elif line.startswith("+") and not line.startswith("+++"):
+            return current_line + line_offset
+        elif not line.startswith("-"):
+            line_offset += 1
+
     return None
 
 def post_review_comment(repo, pr_number, token, comment_body, commit_id, file_path, patch):
